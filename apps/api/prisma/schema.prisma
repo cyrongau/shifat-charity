@@ -1,0 +1,523 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  STAFF
+  DONOR
+  VOLUNTEER
+}
+
+enum DonationFrequency {
+  ONE_TIME
+  MONTHLY
+}
+
+enum PaymentMethod {
+  ZAAD
+  EDAHAB
+  PREMIER_WALLET
+  CARD
+  STRIPE
+  BANK_TRANSFER
+}
+
+enum DonationStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum CampaignStatus {
+  Active
+  Completed
+  Upcoming
+}
+
+enum EmailCampaignStatus {
+  DRAFT
+  SENT
+  SCHEDULED
+}
+
+enum CampaignTargetType {
+  ALL_SUBSCRIBERS
+  MAILING_LIST
+}
+
+enum ProjectStatus {
+  Completed
+  Ongoing
+  Planned
+}
+
+enum NewsCategory {
+  Update
+  Campaign
+  Emergency
+  Announcement
+}
+
+enum PublicationCategory {
+  ANNUAL_REPORT
+  RESEARCH_PAPER
+  FIELD_REPORT
+  TRAINING_GUIDE
+  POLICY_BRIEF
+}
+
+enum TeamCategory {
+  Leadership
+  Medical
+  Advisory
+}
+
+enum JobType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  VOLUNTEER
+}
+
+enum ApplicationStatus {
+  SUBMITTED
+  REVIEWING
+  SHORTLISTED
+  REJECTED
+  ACCEPTED
+}
+
+enum PartnerType {
+  INTERNATIONAL_NGO
+  GOVERNMENT
+  LOCAL_TRUST
+  CORPORATE_DONOR
+}
+
+enum SubmissionStatus {
+  NEW
+  READ
+  REPLIED
+  ARCHIVED
+}
+
+model User {
+  id            String        @id @default(uuid()) @db.Uuid
+  email         String        @unique
+  passwordHash  String        @map("password_hash")
+  fullName      String        @map("full_name")
+  phone         String?
+  role          Role          @default(DONOR)
+  avatarUrl     String?       @map("avatar_url")
+  isActive      Boolean       @default(true) @map("is_active")
+  emailVerified Boolean       @default(false) @map("email_verified")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  donations     Donation[]
+  applications  Application[]
+  authoredNews  NewsItem[]
+  mediaFiles    MediaFile[]
+
+  @@map("users")
+}
+
+model Donation {
+  id             String            @id @default(uuid()) @db.Uuid
+  userId         String?           @db.Uuid @map("user_id")
+  amount         Decimal           @db.Decimal(12, 2)
+  currency       String            @default("USD")
+  frequency      DonationFrequency @default(ONE_TIME)
+  designation    String
+  campaignId     String?           @db.Uuid @map("campaign_id")
+  donorName      String?           @map("donor_name")
+  donorEmail     String?           @map("donor_email")
+  paymentMethod  PaymentMethod     @map("payment_method")
+  status         DonationStatus    @default(PENDING)
+  receiptId      String            @unique @map("receipt_id")
+  transactionRef String?           @map("transaction_ref")
+  isAnonymous    Boolean           @default(false) @map("is_anonymous")
+  metadata       Json?
+  createdAt      DateTime          @default(now()) @map("created_at")
+
+  user           User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  campaign       Campaign?         @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  @@map("donations")
+}
+
+model Program {
+  id              String   @id @default(uuid()) @db.Uuid
+  slug            String   @unique // maternal-child, wash, emergency-relief, etc.
+  title           String
+  description     String
+  longDescription String   @map("long_description") @db.Text
+  iconName        String   @map("icon_name")
+  imageUrl        String   @map("image_url")
+  impactStat      String   @map("impact_stat")
+  sortOrder       Int      @default(0) @map("sort_order")
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  projects        Project[]
+
+  @@map("programs")
+}
+
+model Campaign {
+  id                 String         @id @default(uuid()) @db.Uuid
+  slug               String         @unique
+  title              String
+  description        String
+  longDescription    String         @map("long_description") @db.Text
+  status             CampaignStatus @default(Active)
+  targetAmount       Decimal        @map("target_amount") @db.Decimal(12, 2)
+  currentRaised      Decimal        @default(0) @map("current_raised") @db.Decimal(12, 2)
+  progressPercentage Int            @default(0) @map("progress_percentage")
+  region             String
+  startDate          DateTime       @map("start_date")
+  endDate            DateTime?      @map("end_date")
+  imageUrl           String         @map("image_url")
+  isActive           Boolean        @default(true) @map("is_active")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+
+  donations          Donation[]
+
+  @@map("campaigns")
+}
+
+model Project {
+  id            String        @id @default(uuid()) @db.Uuid
+  programId     String        @db.Uuid @map("program_id")
+  title         String
+  description   String        @db.Text
+  location      String
+  status        ProjectStatus @default(Planned)
+  imageUrl      String        @map("image_url")
+  beneficiaries String
+  isActive      Boolean       @default(true) @map("is_active")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  program       Program       @relation(fields: [programId], references: [id], onDelete: Cascade)
+  galleryItems  GalleryItem[]
+
+  @@map("projects")
+}
+
+model NewsItem {
+  id          String       @id @default(uuid()) @db.Uuid
+  authorId    String       @db.Uuid @map("author_id")
+  title       String
+  excerpt     String       @db.Text
+  content     String       @db.Text
+  category    NewsCategory @default(Update)
+  imageUrl    String       @map("image_url")
+  slug        String       @unique
+  isPublished Boolean      @default(false) @map("is_published")
+  publishedAt DateTime?    @map("published_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  author      User         @relation(fields: [authorId], references: [id])
+
+  @@map("news_items")
+}
+
+model Publication {
+  id              String              @id @default(uuid()) @db.Uuid
+  title           String
+  description     String              @db.Text
+  category        PublicationCategory
+  fileUrl         String              @map("file_url")
+  pages           String
+  isPublished     Boolean             @default(true) @map("is_published")
+  publicationDate DateTime            @map("publication_date")
+  createdAt       DateTime            @default(now()) @map("created_at")
+
+  @@map("publications")
+}
+
+model TeamMember {
+  id        String       @id @default(uuid()) @db.Uuid
+  name      String
+  role      String
+  bio       String       @db.Text
+  imageUrl  String       @map("image_url")
+  category  TeamCategory @default(Medical)
+  sortOrder Int          @default(0) @map("sort_order")
+  isActive  Boolean      @default(true) @map("is_active")
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  @@map("team_members")
+}
+
+model CareerOpportunity {
+  id           String   @id @default(uuid()) @db.Uuid
+  title        String
+  department   String
+  location     String
+  type         JobType  @default(FULL_TIME)
+  description  String   @db.Text
+  requirements Json // string[]
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  applications Application[]
+
+  @@map("career_opportunities")
+}
+
+model Application {
+  id           String            @id @default(uuid()) @db.Uuid
+  careerId     String            @db.Uuid @map("career_id")
+  userId       String?           @db.Uuid @map("user_id")
+  fullName     String            @map("full_name")
+  email        String
+  phone        String
+  resumeUrl    String            @map("resume_url")
+  coverLetter  String?           @map("cover_letter") @db.Text
+  status       ApplicationStatus @default(SUBMITTED)
+  trackingCode String            @unique @map("tracking_code")
+  createdAt    DateTime          @default(now()) @map("created_at")
+
+  career       CareerOpportunity @relation(fields: [careerId], references: [id], onDelete: Cascade)
+  user         User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("applications")
+}
+
+model Partner {
+  id        String      @id @default(uuid()) @db.Uuid
+  name      String
+  logoUrl   String      @map("logo_url")
+  type      PartnerType
+  logoBg    String      @map("logo_bg")
+  sortOrder Int         @default(0) @map("sort_order")
+  isActive  Boolean     @default(true) @map("is_active")
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  @@map("partners")
+}
+
+model MediaFile {
+  id           String   @id @default(uuid()) @db.Uuid
+  uploadedById String   @db.Uuid @map("uploaded_by_id")
+  filename     String
+  originalName String   @map("original_name")
+  mimeType     String   @map("mime_type")
+  fileSize     Int      @map("file_size")
+  bucket       String
+  objectKey    String   @map("object_key")
+  url          String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
+
+  @@map("media_files")
+}
+
+model ContactSubmission {
+  id        String           @id @default(uuid()) @db.Uuid
+  fullName  String           @map("full_name")
+  email     String
+  phone     String?
+  subject   String
+  message   String           @db.Text
+  status    SubmissionStatus @default(NEW)
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  @@map("contact_submissions")
+}
+
+model MailingList {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  description String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  members     MailingListMember[]
+  campaigns   EmailCampaign[]
+
+  @@map("mailing_lists")
+}
+
+model MailingListMember {
+  id            String   @id @default(uuid()) @db.Uuid
+  mailingListId String   @db.Uuid @map("mailing_list_id")
+  subscriberId  String   @db.Uuid @map("subscriber_id")
+  addedAt       DateTime @default(now()) @map("added_at")
+
+  mailingList   MailingList          @relation(fields: [mailingListId], references: [id], onDelete: Cascade)
+  subscriber    NewsletterSubscriber @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+
+  @@unique([mailingListId, subscriberId])
+  @@map("mailing_list_members")
+}
+
+model EmailCampaign {
+  id            String               @id @default(uuid()) @db.Uuid
+  subject       String
+  content       String               @db.Text
+  status        EmailCampaignStatus  @default(DRAFT)
+  targetType    CampaignTargetType   @default(ALL_SUBSCRIBERS) @map("target_type")
+  mailingListId String?              @db.Uuid @map("mailing_list_id")
+  scheduledAt   DateTime?            @map("scheduled_at")
+  sentAt        DateTime?            @map("sent_at")
+  createdAt     DateTime             @default(now()) @map("created_at")
+  updatedAt     DateTime             @updatedAt @map("updated_at")
+
+  mailingList   MailingList?         @relation(fields: [mailingListId], references: [id], onDelete: SetNull)
+
+  @@map("email_campaigns")
+}
+
+model NewsletterSubscriber {
+  id           String    @id @default(uuid()) @db.Uuid
+  email        String    @unique
+  isActive     Boolean   @default(true) @map("is_active")
+  subscribedAt DateTime  @default(now()) @map("subscribed_at")
+  unsubscribed DateTime? @map("unsubscribed_at")
+
+  mailingListMembers MailingListMember[]
+
+  @@map("newsletter_subscribers")
+}
+
+model Announcement {
+  id            String   @id @default(uuid()) @db.Uuid
+  title         String
+  content       String   @db.Text
+  link          String?
+  isActive      Boolean  @default(true) @map("is_active")
+  featuredOrder Int?     @map("featured_order")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("announcements")
+}
+
+model HeroSlide {
+  id               String   @id @default(uuid()) @db.Uuid
+  page             String   @default("home")
+  imageUrl         String   @map("image_url")
+  tagline          String?
+  title            String?
+  description      String?  @db.Text
+  ctaText          String?  @map("cta_text")
+  ctaLink          String?  @map("cta_link")
+  secondaryCtaText String? @map("secondary_cta_text")
+  secondaryCtaLink String? @map("secondary_cta_link")
+  sortOrder        Int      @default(0) @map("sort_order")
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@map("hero_slides")
+}
+
+model GalleryItem {
+  id          String   @id @default(uuid()) @db.Uuid
+  title       String
+  description String   @db.Text
+  imageUrl    String   @map("image_url")
+  category    String?
+  isFeatured  Boolean  @default(false) @map("is_featured")
+  projectId   String?  @db.Uuid @map("project_id")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@map("gallery_items")
+}
+
+model Faq {
+  id        String   @id @default(uuid()) @db.Uuid
+  question  String
+  answer    String   @db.Text
+  category  String?
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("faqs")
+}
+
+model SiteSettings {
+  id String @id @default(uuid()) @db.Uuid
+
+  // System Identity
+  siteName        String  @map("site_name")
+  siteDescription String  @map("site_description") @db.Text
+  contactEmail    String  @map("contact_email")
+  facebookUrl     String? @map("facebook_url")
+  twitterUrl      String? @map("twitter_url")
+  instagramUrl    String? @map("instagram_url")
+
+  // SEO
+  metaTitle       String? @map("meta_title")
+  metaDescription String? @map("meta_description") @db.Text
+  metaKeywords    String? @map("meta_keywords")
+  metaKeyphrases  String? @map("meta_keyphrases")
+  siteTag         String? @map("site_tag")
+  ogImageUrl      String? @map("og_image_url")
+
+  // Brand Identity
+  lightLogoUrl String? @map("light_logo_url")
+  darkLogoUrl  String? @map("dark_logo_url")
+  iconUrl      String? @map("icon_url")
+  faviconUrl   String? @map("favicon_url")
+
+  // Footer
+  footerDescription String? @map("footer_description") @db.Text
+  footerEmail       String? @map("footer_email")
+  footerPhone       String? @map("footer_phone")
+  footerAddress     String? @map("footer_address") @db.Text
+
+  // Contact Page
+  contactPhone        String? @map("contact_phone")
+  contactEmailAddress String? @map("contact_email_address")
+  contactAddress      String? @map("contact_address") @db.Text
+  contactMapUrl       String? @map("contact_map_url")
+
+  // Integrations — SMTP
+  smtpHost     String? @map("smtp_host")
+  smtpPort     Int?    @map("smtp_port")
+  smtpUser     String? @map("smtp_user")
+  smtpPass     String? @map("smtp_pass")
+  smtpFromEmail String? @map("smtp_from_email")
+  smtpFromName String? @map("smtp_from_name")
+
+  // Integrations — Payments
+  stripePublicKey  String? @map("stripe_public_key")
+  stripeSecretKey  String? @map("stripe_secret_key")
+  stripeWebhookSecret String? @map("stripe_webhook_secret")
+
+  // Integrations — FCM
+  fcmServerKey String? @map("fcm_server_key")
+
+  // Mega Menu
+  featuredProgramId String? @map("featured_program_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("site_settings")
+}

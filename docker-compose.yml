@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  shifat-db:
+    image: postgres:16-alpine
+    container_name: shifat-db
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-shifat_admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-shifat_secure_pass}
+      POSTGRES_DB: ${DB_NAME:-shifat_db}
+    ports:
+      - "${DB_PORT:-5202}:5432"
+    volumes:
+      - shifat_db_data:/var/lib/postgresql/data
+    networks:
+      - shifat-network
+
+  shifat-redis:
+    image: redis:7-alpine
+    container_name: shifat-redis
+    restart: always
+    ports:
+      - "${REDIS_PORT:-5203}:6379"
+    volumes:
+      - shifat_redis_data:/data
+    networks:
+      - shifat-network
+
+  shifat-minio:
+    image: minio/minio:latest
+    container_name: shifat-minio
+    restart: always
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-shifat_minio_admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-shifat_minio_pass}
+    ports:
+      - "${MINIO_API_PORT:-5204}:9000"
+      - "${MINIO_CONSOLE_PORT:-5205}:9001"
+    volumes:
+      - shifat_minio_data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - shifat-network
+
+  shifat-mailpit:
+    image: axllent/mailpit:latest
+    container_name: shifat-mailpit
+    restart: always
+    ports:
+      - "${MAILPIT_SMTP_PORT:-5206}:1025"
+      - "${MAILPIT_UI_PORT:-5207}:8025"
+    networks:
+      - shifat-network
+
+volumes:
+  shifat_db_data:
+  shifat_redis_data:
+  shifat_minio_data:
+
+networks:
+  shifat-network:
+    driver: bridge
