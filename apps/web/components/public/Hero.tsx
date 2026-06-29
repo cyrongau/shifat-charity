@@ -13,8 +13,40 @@ const ACCENT_COLORS = [
   'border-amber-500 text-amber-500',
 ];
 
+const FALLBACK_SLIDES = [
+  {
+    imageUrl: 'https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&q=80&w=1600',
+    tagline: 'Empowering Mothers, Protecting Futures',
+    title: 'Transforming Maternal & Child Health',
+    description: 'Operating state-of-the-art neonatal wards and mobile antenatal clinics to ensure safe deliveries in pastoral communities across the Horn of Africa.',
+    ctaText: 'Support Maternal Wards',
+    ctaLink: '/donate',
+    secondaryCtaText: 'Learn More',
+    secondaryCtaLink: '/programs',
+  },
+  {
+    imageUrl: 'https://images.unsplash.com/photo-1541256996761-85df2efaa164?auto=format&fit=crop&q=80&w=1600',
+    tagline: 'Water is Health, Water is Dignity',
+    title: 'Solar-Powered Clean Water Networks',
+    description: 'Replacing obsolete infrastructure with high-efficiency solar water wells to eradicate waterborne pathogens in Togdheer and Sanaag.',
+    ctaText: 'Fund a Solar Well',
+    ctaLink: '/donate',
+    secondaryCtaText: 'Learn More',
+    secondaryCtaLink: '/programs',
+  },
+  {
+    imageUrl: 'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&q=80&w=1600',
+    tagline: 'Immediate Support When Drought Strikes',
+    title: 'Emergency Relief & Nutrition Outposts',
+    description: 'Activating critical medical centers and rapid water distribution channels during severe, climate-induced resource shortages.',
+    ctaText: 'Provide Critical Aid',
+    ctaLink: '/donate',
+    secondaryCtaText: 'Learn More',
+    secondaryCtaLink: '/campaigns',
+  },
+];
+
 interface HeroSlideData {
-  id: string;
   imageUrl: string;
   tagline: string | null;
   title: string | null;
@@ -27,8 +59,7 @@ interface HeroSlideData {
 
 export default function Hero() {
   const router = useRouter();
-  const [slides, setSlides] = useState<HeroSlideData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [slides, setSlides] = useState<HeroSlideData[]>(FALLBACK_SLIDES);
   const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
@@ -37,9 +68,8 @@ export default function Hero() {
       .then((res) => {
         const items: HeroSlideData[] = res.data || [];
         if (items.length > 0) setSlides(items);
-        setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {});
   }, []);
 
   const current = slides[currentSlide];
@@ -54,16 +84,13 @@ export default function Hero() {
   }, [slides.length]);
 
   const handleNext = () => {
-    if (slides.length === 0) return;
     setCurrentSlide((prev) => (prev + 1) % slides.length);
   };
 
   const handlePrev = () => {
-    if (slides.length === 0) return;
     setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
   };
 
-  if (loading || slides.length === 0) return null;
   const slide = current!;
 
   return (
